@@ -2,3 +2,5 @@ Flask
 flask-cors
 pypdf
 python-docx
+PyJWT
+Werkzeug
