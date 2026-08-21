@@ -9,6 +9,8 @@ from pypdf import PdfReader
 import docx
 
 app = Flask(__name__)
+
+app.debug = False
 CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "DELETE", "OPTIONS"], "allow_headers": ["Content-Type", "Authorization"]}})
 
 DB_FILE = "/tmp/scanline.db" if os.environ.get("VERCEL") else "scanline.db"
@@ -640,4 +642,4 @@ def delete_analysis(analysis_id):
         conn.close()
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000)
