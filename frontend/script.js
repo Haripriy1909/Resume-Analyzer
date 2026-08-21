@@ -1,5 +1,5 @@
-const API_BASE = window.location.port === "5500" || window.location.protocol === "file:" 
-  ? "http://127.0.0.1:5000/api" 
+const API_BASE = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+  ? "http://127.0.0.1:5000/api"
   : "/api";
 
 const hamburgerBtn = document.getElementById("hamburgerBtn");
