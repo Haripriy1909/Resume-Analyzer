@@ -1,4 +1,6 @@
-const API_BASE = "/api";
+const API_BASE = window.location.port === "5500" || window.location.protocol === "file:" 
+  ? "http://127.0.0.1:5000/api" 
+  : "/api";
 
 const hamburgerBtn = document.getElementById("hamburgerBtn");
 const topNav = document.getElementById("topNav");
@@ -86,9 +88,10 @@ if (hamburgerBtn && topNav) {
 }
 
 function initTheme() {
-  document.documentElement.setAttribute("data-theme", "dark");
-  sessionStorage.setItem("theme", "dark");
-  if (themeIcon) themeIcon.textContent = "🌙";
+  const saved = sessionStorage.getItem("theme") || "dark";
+  document.documentElement.setAttribute("data-theme", saved);
+  sessionStorage.setItem("theme", saved);
+  if (themeIcon) themeIcon.textContent = saved === "dark" ? "🌙" : "☀️";
 }
 
 function toggleTheme() {
@@ -102,7 +105,12 @@ function toggleTheme() {
 if (themeToggleBtn) themeToggleBtn.addEventListener("click", toggleTheme);
 
 function isUserLoggedIn() {
-  return sessionStorage.getItem("isLoggedIn") === "true";
+  return sessionStorage.getItem("isLoggedIn") === "true" && !!sessionStorage.getItem("authToken");
+}
+
+function getAuthHeaders() {
+  const token = sessionStorage.getItem("authToken");
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 function updateAuthStateUI() {
@@ -164,10 +172,18 @@ if (loginForm) {
           password: loginPasswordInput.value.trim(),
         }),
       });
-      const data = await res.json();
+
+      let data;
+      try {
+        data = await res.json();
+      } catch (jsonErr) {
+        throw new Error("Server returned an invalid response.");
+      }
+
       if (!res.ok) throw new Error(data.error || "Login failed.");
 
       sessionStorage.setItem("isLoggedIn", "true");
+      sessionStorage.setItem("authToken", data.token);
       sessionStorage.setItem("userName", data.name);
       sessionStorage.setItem("userEmail", data.email);
 
@@ -199,10 +215,18 @@ if (signupForm) {
           password: signupPasswordInput.value.trim(),
         }),
       });
-      const data = await res.json();
+
+      let data;
+      try {
+        data = await res.json();
+      } catch (jsonErr) {
+        throw new Error("Server returned an invalid response.");
+      }
+
       if (!res.ok) throw new Error(data.error || "Signup failed.");
 
       sessionStorage.setItem("isLoggedIn", "true");
+      sessionStorage.setItem("authToken", data.token);
       sessionStorage.setItem("userName", data.name);
       sessionStorage.setItem("userEmail", data.email);
 
@@ -220,7 +244,10 @@ if (signupForm) {
 
 if (logoutBtn) {
   logoutBtn.addEventListener("click", () => {
-    sessionStorage.clear();
+    sessionStorage.removeItem("isLoggedIn");
+    sessionStorage.removeItem("authToken");
+    sessionStorage.removeItem("userName");
+    sessionStorage.removeItem("userEmail");
     updateAuthStateUI();
     switchView("login");
   });
@@ -342,13 +369,25 @@ if (scanForm) {
     try {
       const res = await fetch(`${API_BASE}/analyze`, {
         method: "POST",
-        headers: { Authorization: "Bearer authenticated-user-session" },
+        headers: getAuthHeaders(),
         body: formData,
       });
 
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch (jsonErr) {
+        throw new Error("Invalid response received from server.");
+      }
 
       if (!res.ok) {
+        if (res.status === 401) {
+          sessionStorage.clear();
+          updateAuthStateUI();
+          showError("Session expired. Please log in again.");
+          switchView("login");
+          return;
+        }
         if (res.status === 422 || data.is_invalid_resume) {
           showInvalidResumePopup(data.error);
           return;
@@ -364,7 +403,7 @@ if (scanForm) {
       };
       renderResults(data);
     } catch (err) {
-      showError(err.message === "Failed to fetch" ? "Cannot connect to backend server. Is Flask active on port 5000?" : err.message);
+      showError(err.message === "Failed to fetch" ? "Cannot connect to backend server. Ensure Flask is active." : err.message);
     } finally {
       setLoading(false);
     }
@@ -501,14 +540,43 @@ function colorForScore(score) {
 
 async function loadHistory() {
   if (!historyBody) return;
-  historyBody.innerHTML = `<tr><td colspan="7" class="empty-note">Loading past scans...</td></tr>`;
+
+  if (!isUserLoggedIn()) {
+    historyBody.innerHTML = `
+      <tr>
+        <td colspan="7" class="empty-note" style="padding: 30px; text-align: center;">
+          <span>🔒 Please <strong>log in</strong> to view and manage your private scan history.</span>
+        </td>
+      </tr>`;
+    return;
+  }
+
+  historyBody.innerHTML = `<tr><td colspan="7" class="empty-note">Loading your scan logs...</td></tr>`;
+  
   try {
-    const res = await fetch(`${API_BASE}/history`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Failed to load history.");
+    const res = await fetch(`${API_BASE}/history`, {
+      headers: getAuthHeaders()
+    });
+    
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error("Could not parse history response.");
+    }
+    
+    if (!res.ok) {
+      if (res.status === 401) {
+        sessionStorage.clear();
+        updateAuthStateUI();
+        historyBody.innerHTML = `<tr><td colspan="7" class="empty-note">Session expired. Please log in again.</td></tr>`;
+        return;
+      }
+      throw new Error(data.error || "Failed to load history.");
+    }
 
     if (!data.history || !data.history.length) {
-      historyBody.innerHTML = `<tr><td colspan="7" class="empty-note">No scans logged yet.</td></tr>`;
+      historyBody.innerHTML = `<tr><td colspan="7" class="empty-note">No scans logged for your account yet.</td></tr>`;
       return;
     }
 
@@ -522,15 +590,31 @@ async function loadHistory() {
         <td>${row.ats_score ?? "—"}/100</td>
         <td>${row.word_count ?? "—"}</td>
         <td>${new Date(row.created_at).toLocaleDateString()}</td>
-        <td><button class="history-delete" data-id="${row.id}">✕</button></td>
+        <td><button class="history-delete" data-id="${row.id}" title="Delete Record">✕</button></td>
       `;
       historyBody.appendChild(tr);
     });
 
     historyBody.querySelectorAll(".history-delete").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        await fetch(`${API_BASE}/analysis/${btn.dataset.id}`, { method: "DELETE" });
-        loadHistory();
+        if (!confirm("Are you sure you want to delete this scan entry?")) return;
+        btn.disabled = true;
+        try {
+          const delRes = await fetch(`${API_BASE}/analysis/${btn.dataset.id}`, {
+            method: "DELETE",
+            headers: getAuthHeaders()
+          });
+          if (delRes.ok) {
+            loadHistory();
+          } else {
+            const errData = await delRes.json();
+            alert(errData.error || "Could not delete record.");
+            btn.disabled = false;
+          }
+        } catch {
+          alert("Network error deleting record.");
+          btn.disabled = false;
+        }
       });
     });
   } catch (err) {
