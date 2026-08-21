@@ -28,59 +28,101 @@ CORS(app, resources={
 ROLE_SKILL_MATRIX = {
     "frontend developer": [
         "html", "css", "javascript", "typescript", "react", "nextjs", "vue", "angular", 
-        "tailwind", "redux", "zustand", "gsap", "framer motion", "vite", "webpack", 
-        "responsive design", "rest api", "graphql", "sass", "bootstrap"
+        "tailwind", "tailwind css", "redux", "zustand", "gsap", "framer motion", "vite", 
+        "webpack", "responsive design", "rest api", "graphql", "sass", "bootstrap",
+        "figma", "git", "github", "npm", "yarn", "es6", "dom", "ajax", "json"
     ],
     "backend developer": [
-        "node", "express", "python", "django", "flask", "fastapi", "java", "spring boot", 
-        "golang", "c#", ".net", "sql", "postgresql", "mysql", "mongodb", "redis", 
-        "rest api", "graphql", "docker", "microservices", "jwt", "kafka", "rabbitmq"
+        "node", "nodejs", "express", "expressjs", "python", "django", "flask", "fastapi", 
+        "java", "spring boot", "golang", "c#", ".net", "sql", "postgresql", "mysql", 
+        "mongodb", "redis", "rest api", "graphql", "docker", "microservices", "jwt", 
+        "kafka", "rabbitmq", "prisma", "orm", "mvc"
     ],
     "full stack developer": [
-        "react", "nextjs", "node", "express", "python", "sql", "postgresql", "mongodb", 
-        "docker", "microservices", "ci/cd", "aws", "typescript", "rest api", "graphql"
+        "html", "css", "javascript", "typescript", "react", "nextjs", "node", "nodejs", 
+        "express", "python", "sql", "postgresql", "mongodb", "rest api", "graphql", 
+        "docker", "tailwind", "git", "ci/cd", "aws", "redux", "prisma"
     ],
     "web developer": [
-        "html", "css", "javascript", "react", "responsive design", "tailwind", 
-        "bootstrap", "rest api", "git", "seo", "web performance"
+        "html", "html5", "css", "css3", "javascript", "react", "responsive design", 
+        "tailwind", "bootstrap", "rest api", "git", "github", "seo", "web performance", 
+        "jquery", "sass", "wordpress"
     ],
     "python developer": [
         "python", "django", "flask", "fastapi", "sql", "postgresql", "pandas", 
-        "numpy", "pytest", "asyncio", "celery", "redis", "docker"
+        "numpy", "pytest", "asyncio", "celery", "redis", "docker", "git", 
+        "sqlalchemy", "data structures", "algorithms"
     ],
     "ai/ml engineer": [
         "python", "machine learning", "deep learning", "nlp", "llms", "pytorch", 
         "tensorflow", "scikit-learn", "langchain", "llamaindex", "hugging face", 
-        "vector database", "pinecone", "rag", "opencv"
+        "vector database", "pinecone", "chroma", "rag", "opencv", "mlops", "numpy", "pandas"
+    ],
+    "generative ai engineer": [
+        "python", "llms", "langchain", "llamaindex", "prompt engineering", "rag", 
+        "vector database", "pinecone", "chroma", "fine-tuning", "hugging face", 
+        "gemini api", "openai api", "pytorch", "deep learning", "agentic workflows"
     ],
     "data scientist": [
         "python", "r", "machine learning", "sql", "pandas", "numpy", "scikit-learn", 
-        "data visualization", "matplotlib", "seaborn", "tableau", "power bi", "statistics"
+        "scipy", "data visualization", "matplotlib", "seaborn", "tableau", "power bi", 
+        "deep learning", "statistics", "feature engineering"
+    ],
+    "data engineer": [
+        "python", "sql", "apache spark", "spark", "hadoop", "kafka", "airflow", 
+        "snowflake", "dbt", "bigquery", "postgresql", "etl", "data warehousing", 
+        "aws glue", "docker", "hive"
     ],
     "devops engineer": [
         "linux", "docker", "kubernetes", "terraform", "ansible", "aws", "azure", 
-        "gcp", "ci/cd", "github actions", "jenkins", "prometheus", "grafana", "bash"
+        "gcp", "ci/cd", "github actions", "jenkins", "helm", "prometheus", "grafana", 
+        "bash", "shell scripting", "nginx"
+    ],
+    "cloud architect / engineer": [
+        "aws", "azure", "gcp", "terraform", "cloudformation", "iam", "serverless", 
+        "lambda", "s3", "ec2", "docker", "kubernetes", "networking", "vpc", "cloudwatch"
+    ],
+    "cybersecurity analyst": [
+        "network security", "penetration testing", "siem", "firewalls", 
+        "vulnerability assessment", "soc", "incident response", "cryptography", 
+        "wireshark", "owasp", "metasploit", "python", "kali linux"
     ],
     "mobile app developer": [
         "react native", "flutter", "dart", "swift", "kotlin", "ios", "android", 
-        "sqlite", "firebase", "state management"
+        "mobile ui", "sqlite", "rest api", "firebase", "state management", "redux"
+    ],
+    "qa / automation test engineer": [
+        "selenium", "cypress", "playwright", "jest", "postman", "api testing", 
+        "automation testing", "manual testing", "jira", "load testing", "python", 
+        "javascript", "testng", "cucumber"
+    ],
+    "blockchain / web3 developer": [
+        "solidity", "ethereum", "smart contracts", "web3js", "ethersjs", "rust", 
+        "metamask", "truffle", "hardhat", "defi", "cryptography", "ipfs"
     ],
     "ui/ux designer": [
         "figma", "wireframing", "prototyping", "user research", "ui design", "ux design", 
-        "design systems", "information architecture", "interaction design", "adobe xd"
+        "design systems", "information architecture", "interaction design", "adobe xd", 
+        "sketch", "usability testing"
     ]
 }
 
 ROLE_ALIASES = {
-    "frontend developer": ["frontend", "front end", "front-end", "ui developer", "react developer"],
-    "backend developer": ["backend", "back end", "back-end", "node developer", "api developer"],
-    "full stack developer": ["full stack", "fullstack", "full-stack", "mern", "mean"],
+    "frontend developer": ["frontend", "front end", "front-end", "ui developer", "react developer", "vue developer", "angular developer"],
+    "backend developer": ["backend", "back end", "back-end", "node developer", "python developer", "java developer", "spring developer"],
+    "full stack developer": ["full stack", "fullstack", "full-stack", "mern", "mean", "software engineer", "sde"],
     "web developer": ["web developer", "web dev", "website developer"],
-    "python developer": ["python developer", "python dev", "django developer"],
-    "ai/ml engineer": ["ai", "ml", "ai/ml", "machine learning", "deep learning"],
-    "data scientist": ["data science", "data scientist", "data analytics"],
-    "devops engineer": ["devops", "sre", "cloud engineer"],
-    "mobile app developer": ["mobile developer", "react native developer", "flutter developer", "android developer"],
+    "python developer": ["python developer", "python dev", "django developer", "fastapi developer"],
+    "ai/ml engineer": ["ai", "ml", "ai/ml", "machine learning", "deep learning", "ml engineer"],
+    "generative ai engineer": ["gen ai", "generative ai", "llm engineer", "prompt engineer", "rag developer"],
+    "data scientist": ["data science", "data scientist", "data analytics", "data analyst"],
+    "data engineer": ["data engineer", "etl developer", "big data engineer"],
+    "devops engineer": ["devops", "site reliability engineer", "sre", "ci/cd engineer"],
+    "cloud architect / engineer": ["cloud", "cloud engineer", "aws engineer", "azure engineer", "gcp engineer"],
+    "cybersecurity analyst": ["cyber security", "cybersecurity", "security analyst", "infosec", "pen tester"],
+    "mobile app developer": ["mobile developer", "app developer", "react native developer", "flutter developer", "android developer", "ios developer"],
+    "qa / automation test engineer": ["qa", "tester", "quality assurance", "automation tester", "sdet"],
+    "blockchain / web3 developer": ["blockchain", "web3", "solidity developer", "smart contract developer"],
     "ui/ux designer": ["ui/ux", "ui designer", "ux designer", "product designer"]
 }
 
@@ -182,6 +224,18 @@ def normalize_text(text):
     t = re.sub(r'\bnext(?:\.js|js)?\b', 'nextjs', t)
     return t
 
+def parse_input_skills(raw_input):
+    if not raw_input:
+        return []
+    items = re.split(r'[,;\n/]+', raw_input)
+    parsed = []
+    for item in items:
+        cleaned = item.strip().lower()
+        if cleaned:
+            cleaned = normalize_text(cleaned)
+            parsed.append(cleaned)
+    return list(dict.fromkeys(parsed))
+
 def auto_detect_matching_roles(text_lower, resume_words_set):
     role_match_scores = []
     
@@ -214,7 +268,7 @@ def auto_detect_matching_roles(text_lower, resume_words_set):
 def match_target_roles(job_title_input):
     cleaned_input = job_title_input.lower().strip()
     for canonical_key, aliases in ROLE_ALIASES.items():
-        if canonical_key in cleaned_input:
+        if canonical_key in cleaned_input or cleaned_input in canonical_key:
             return canonical_key, ROLE_SKILL_MATRIX.get(canonical_key, [])
         for alias in aliases:
             if re.search(r'\b' + re.escape(alias) + r'\b', cleaned_input):
@@ -243,8 +297,8 @@ def analyze_resume_text(raw_text, job_title, job_desc):
     
     sections = {
         "Experience": ["experience", "employment", "work history", "internship", "work experience"],
-        "Education": ["education", "academic", "degree", "qualification", "b.tech", "bachelor", "master", "diploma", "bca", "college"],
-        "Skills": ["skills", "technical skills", "technologies", "proficiencies", "tools"],
+        "Education": ["education", "academic", "degree", "qualification", "b.tech", "bachelor", "master", "diploma", "bca", "college", "university"],
+        "Skills": ["skills", "technical skills", "technologies", "proficiencies", "tools", "core competencies"],
         "Projects": ["projects", "personal projects", "portfolio", "key projects"],
         "Certifications": ["certifications", "certificates", "achievements", "courses"]
     }
@@ -259,10 +313,15 @@ def analyze_resume_text(raw_text, job_title, job_desc):
     detected_roles = auto_detect_matching_roles(text_lower, resume_words_set)
     is_custom_role_provided = bool(job_title and job_title.strip())
 
-    if is_custom_role_provided:
+    explicit_jd_skills = parse_input_skills(job_desc)
+
+    if explicit_jd_skills and len(explicit_jd_skills) > 0 and (not job_title or not job_title.strip() or len(explicit_jd_skills) >= 3):
+        all_target_skills = explicit_jd_skills
+        effective_role = job_title.strip() if is_custom_role_provided else "Custom Required Skills"
+    elif is_custom_role_provided:
         effective_role_name, resolved_skills = match_target_roles(job_title)
         effective_role = job_title.strip()
-        all_target_skills = resolved_skills
+        all_target_skills = list(dict.fromkeys(resolved_skills + explicit_jd_skills))
     else:
         if detected_roles:
             effective_role = detected_roles[0]["role"].title()
@@ -270,13 +329,6 @@ def analyze_resume_text(raw_text, job_title, job_desc):
         else:
             effective_role = "General Profile"
             all_target_skills = []
-
-    if job_desc and job_desc.strip():
-        jd_lower = normalize_text(job_desc)
-        jd_skills = [w for w in re.findall(r'\b[a-zA-Z0-9+#.-]+\b', jd_lower) if len(w) > 2]
-        extracted_jd_skills = list(set(jd_skills).intersection(set([s for sub in ROLE_SKILL_MATRIX.values() for s in sub])))
-        if extracted_jd_skills:
-            all_target_skills = list(set(all_target_skills + extracted_jd_skills))
 
     matched_skills = []
     missing_skills = []
@@ -293,7 +345,10 @@ def analyze_resume_text(raw_text, job_title, job_desc):
             else:
                 missing_skills.append(skill)
 
-    match_score = int((len(matched_skills) / len(all_target_skills)) * 100) if all_target_skills else 50
+    if len(all_target_skills) > 0:
+        match_score = int((len(matched_skills) / len(all_target_skills)) * 100)
+    else:
+        match_score = 0
 
     score_breakdown = []
     suggestions = []
@@ -320,7 +375,14 @@ def analyze_resume_text(raw_text, job_title, job_desc):
         "detail": f"Detected {distinct_sections} key sections: {', '.join(set(sections_found)) if sections_found else 'None'}"
     })
 
-    len_pts = 15 if 350 <= word_count <= 850 else (10 if 220 <= word_count < 350 else (5 if word_count < 220 else 8))
+    if 350 <= word_count <= 850:
+        len_pts = 15
+    elif 220 <= word_count < 350:
+        len_pts = 10
+    elif word_count < 220:
+        len_pts = 5
+    else:
+        len_pts = 8
     calculated_ats += len_pts
     score_breakdown.append({
         "label": f"Content Density ({len_pts}/15)",
@@ -338,12 +400,12 @@ def analyze_resume_text(raw_text, job_title, job_desc):
         "detail": f"Action verbs: {len(verbs_found)} | Quantifiable metrics: {'Found' if has_metrics else 'Missing'}"
     })
 
-    skill_pts = int((match_score / 100) * 25) if all_target_skills else 15
+    skill_pts = int((match_score / 100) * 25) if all_target_skills else 10
     calculated_ats += skill_pts
     score_breakdown.append({
         "label": f"Role Skills Match ({skill_pts}/25)",
-        "passed": skill_pts >= 12,
-        "detail": f"Matched {len(matched_skills)} of {len(all_target_skills)} core skills for {effective_role}"
+        "passed": skill_pts >= 15,
+        "detail": f"Matched {len(matched_skills)} of {len(all_target_skills)} required skills for {effective_role}"
     })
 
     hygiene_pts = 10 if len(raw_text.strip()) >= 100 else 5
@@ -370,7 +432,7 @@ def analyze_resume_text(raw_text, job_title, job_desc):
     if distinct_sections < 4:
         suggestions.append("Structure resume with standard headings: Education, Skills, Projects, and Experience.")
     if missing_skills:
-        suggestions.append(f"Consider adding missing {effective_role} skills: {', '.join(missing_skills[:6])}.")
+        suggestions.append(f"Consider adding missing required skills: {', '.join(missing_skills[:6])}.")
 
     return {
         "ats_score": final_ats_score,            
