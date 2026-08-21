@@ -2,18 +2,28 @@ import os
 import re
 import io
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from functools import wraps
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pypdf import PdfReader
 import docx
+import jwt
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-
 app.debug = False
-CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "DELETE", "OPTIONS"], "allow_headers": ["Content-Type", "Authorization"]}})
 
+SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "scanline-secure-jwt-ats-secret-key-2026")
 DB_FILE = "/tmp/scanline.db" if os.environ.get("VERCEL") else "scanline.db"
+
+CORS(app, resources={
+    r"/api/*": {
+        "origins": "*",
+        "methods": ["GET", "POST", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})
 
 ROLE_SKILL_MATRIX = {
     "frontend developer": [
@@ -114,36 +124,60 @@ ACTION_VERBS = [
 ]
 
 def init_db():
-    try:
-        conn = sqlite3.connect(DB_FILE)
-        cursor = conn.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS analyses (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                filename TEXT NOT NULL,
-                job_title TEXT,
-                match_score INTEGER,
-                ats_score INTEGER,
-                word_count INTEGER,
-                created_at TEXT NOT NULL
-            )
-        ''')
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                email TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL,
-                created_at TEXT NOT NULL
-            )
-        ''')
-        conn.commit()
-    except Exception as e:
-        print(f"DB Error: {e}")
-    finally:
-        conn.close()
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS analyses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            filename TEXT NOT NULL,
+            job_title TEXT,
+            match_score INTEGER,
+            ats_score INTEGER,
+            word_count INTEGER,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        )
+    ''')
+    conn.commit()
+    conn.close()
 
 init_db()
+
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if request.method == "OPTIONS":
+            return jsonify({"status": "ok"}), 200
+        
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            return jsonify({"error": "Authentication token is missing. Please log in."}), 401
+        
+        parts = auth_header.split()
+        if len(parts) != 2 or parts[0].lower() != "bearer":
+            return jsonify({"error": "Invalid Authorization header format."}), 401
+        
+        token = parts[1]
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+            current_user_id = payload["user_id"]
+        except jwt.ExpiredSignatureError:
+            return jsonify({"error": "Session token expired. Please log in again."}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({"error": "Invalid session token. Please log in."}), 401
+
+        return f(current_user_id, *args, **kwargs)
+    return decorated
 
 def clean_extracted_text(text):
     if not text:
@@ -183,7 +217,6 @@ def normalize_text(text):
 
 def auto_detect_matching_roles(text_lower, resume_words_set):
     role_match_scores = []
-    
     for role_name, skills in ROLE_SKILL_MATRIX.items():
         matched = []
         for skill in skills:
@@ -203,14 +236,12 @@ def auto_detect_matching_roles(text_lower, resume_words_set):
                 "matched_skills": matched,
                 "total_skills": len(skills)
             })
-    
     role_match_scores.sort(key=lambda x: (x["matched_count"], x["score"]), reverse=True)
     return role_match_scores
 
 def match_target_roles(job_title_input):
     cleaned_input = job_title_input.lower().strip()
     matched_matrix_keys = set()
-
     for canonical_key, aliases in ROLE_ALIASES.items():
         if canonical_key in cleaned_input or cleaned_input in canonical_key:
             matched_matrix_keys.add(canonical_key)
@@ -219,25 +250,20 @@ def match_target_roles(job_title_input):
             if re.search(r'\b' + re.escape(alias) + r'\b', cleaned_input) or alias in cleaned_input:
                 matched_matrix_keys.add(canonical_key)
                 break
-
     if not matched_matrix_keys:
         for canonical_key in ROLE_SKILL_MATRIX.keys():
             if canonical_key in cleaned_input:
                 matched_matrix_keys.add(canonical_key)
-
     if not matched_matrix_keys:
         return None
-
     target_skills = set()
     for role in matched_matrix_keys:
         target_skills.update(ROLE_SKILL_MATRIX.get(role, []))
-
     return list(target_skills)
 
 def validate_is_resume(text_lower, contact_info, sections_found, word_count):
     has_contact = bool(contact_info["email"] or contact_info["phone"] or contact_info["linkedin"] or contact_info["github"])
     has_standard_sections = len(sections_found) >= 2
-    
     resume_buzzwords = [
         "curriculum vitae", "resume", "experience", "education", "skills", 
         "projects", "certifications", "bachelor", "b.tech", "bca", "college", 
@@ -247,13 +273,10 @@ def validate_is_resume(text_lower, contact_info, sections_found, word_count):
 
     if word_count < 60:
         return False, "The document has insufficient content to be identified as a resume."
-    
     if not has_contact and not has_standard_sections:
         return False, "Invalid document detected. Please upload a valid resume containing standard sections (Skills, Education, Projects) and contact details."
-    
     if buzzword_count < 2 and not has_standard_sections:
-        return False, "This document does not appear to be a resume. Please upload a proper professional CV/Resume (PDF, DOCX, or TXT)."
-
+        return False, "This document does not appear to be a resume. Please upload a proper professional CV/Resume."
     return True, ""
 
 def analyze_resume_text(raw_text, job_title, job_desc):
@@ -285,17 +308,10 @@ def analyze_resume_text(raw_text, job_title, job_desc):
     }
     
     sections_found = []
-    has_experience = False
-    has_projects = False
-    
     for section_name, keywords in sections.items():
         for kw in keywords:
             if re.search(r'\b' + re.escape(kw) + r'\b', text_lower):
                 sections_found.append(section_name)
-                if section_name == "Experience":
-                    has_experience = True
-                if section_name == "Projects":
-                    has_projects = True
                 break
 
     detected_roles = auto_detect_matching_roles(text_lower, resume_words_set)
@@ -312,11 +328,6 @@ def analyze_resume_text(raw_text, job_title, job_desc):
         else:
             effective_role = "General Profile"
             all_target_skills = []
-
-    top_suggested_roles = [
-        {"role": r["role"].title(), "match_percent": r["score"], "matched_skills_count": r["matched_count"]}
-        for r in detected_roles[:4]
-    ]
 
     matched_skills = []
     missing_skills = []
@@ -339,7 +350,6 @@ def analyze_resume_text(raw_text, job_title, job_desc):
     suggestions = []
     calculated_ats = 0
 
-    # 1. Contact Points (Max 15)
     contact_pts = 0
     if contact_info["email"]: contact_pts += 5
     if contact_info["phone"]: contact_pts += 4
@@ -352,18 +362,10 @@ def analyze_resume_text(raw_text, job_title, job_desc):
         "detail": f"Email: {'✓' if contact_info['email'] else '✕'} | Phone: {'✓' if contact_info['phone'] else '✕'} | Profiles: {'✓' if contact_info['linkedin'] or contact_info['github'] else '✕'}"
     })
     if contact_pts < 12:
-        suggestions.append("Add missing contact credentials (Professional Email, Mobile Number, and LinkedIn/GitHub links).")
+        suggestions.append("Add missing contact credentials (Professional Email, Mobile Number, LinkedIn/GitHub).")
 
-    # 2. Section Structure (Max 20)
     distinct_sections = len(set(sections_found))
-    if distinct_sections >= 4:
-        sec_pts = 20
-    elif distinct_sections == 3:
-        sec_pts = 14
-    elif distinct_sections == 2:
-        sec_pts = 8
-    else:
-        sec_pts = 4
+    sec_pts = 20 if distinct_sections >= 4 else (14 if distinct_sections == 3 else (8 if distinct_sections == 2 else 4))
     calculated_ats += sec_pts
     score_breakdown.append({
         "label": f"Section Hierarchy ({sec_pts}/20)",
@@ -371,69 +373,45 @@ def analyze_resume_text(raw_text, job_title, job_desc):
         "detail": f"Detected {distinct_sections} key sections: {', '.join(set(sections_found)) if sections_found else 'None'}"
     })
     if distinct_sections < 4:
-        suggestions.append("Structure resume with standard headings: Education, Skills, Projects, and Experience/Certifications.")
+        suggestions.append("Structure resume with standard headings: Education, Skills, Projects, and Experience.")
 
-    # 3. Content Density & Length (Max 15)
-    if 350 <= word_count <= 850:
-        len_pts = 15
-        len_msg = f"Optimal ATS word count ({word_count} words)"
-    elif 220 <= word_count < 350:
-        len_pts = 10
-        len_msg = f"Slightly short ({word_count} words). Recommended: 350-700 words"
-    elif word_count < 220:
-        len_pts = 5
-        len_msg = f"Too brief ({word_count} words). Needs deeper project descriptions"
-    else:
-        len_pts = 8
-        len_msg = f"Too lengthy ({word_count} words). Aim for a concise single/two page layout"
+    len_pts = 15 if 350 <= word_count <= 850 else (10 if 220 <= word_count < 350 else (5 if word_count < 220 else 8))
     calculated_ats += len_pts
     score_breakdown.append({
         "label": f"Content Density ({len_pts}/15)",
         "passed": len_pts >= 10,
-        "detail": len_msg
+        "detail": f"Resume contains {word_count} words."
     })
-    if len_pts < 15:
-        suggestions.append("Elaborate on project descriptions using bullet points with technical specifics and impact.")
 
-    # 4. Action Verbs & Metrics (Max 15)
     verbs_found = [v for v in ACTION_VERBS if re.search(r'\b' + re.escape(v) + r'\b', text_lower)]
     has_metrics = bool(re.search(r'\b\d+(?:%|\+|ms|k|x|\.\d+)\b', text_lower))
-    
     impact_pts = min(10, len(verbs_found) * 2) + (5 if has_metrics else 0)
     calculated_ats += impact_pts
     score_breakdown.append({
         "label": f"Impact & Action Verbs ({impact_pts}/15)",
         "passed": impact_pts >= 10,
-        "detail": f"Action verbs detected: {len(verbs_found)} | Quantifiable metrics (%, ms, numbers): {'Found' if has_metrics else 'Missing'}"
+        "detail": f"Action verbs: {len(verbs_found)} | Quantifiable metrics: {'Found' if has_metrics else 'Missing'}"
     })
     if impact_pts < 10:
-        suggestions.append("Use strong action verbs (e.g., 'Architected', 'Engineered', 'Optimized') and measurable results (% speedup, users handled).")
+        suggestions.append("Use strong action verbs (e.g., 'Architected', 'Optimized') and measurable impact metrics.")
 
-    # 5. Core Role Alignment (Max 25)
     skill_pts = int((match_score / 100) * 25) if all_target_skills else 15
     calculated_ats += skill_pts
     score_breakdown.append({
         "label": f"Role Skills Match ({skill_pts}/25)",
         "passed": skill_pts >= 12,
-        "detail": f"Matched {len(matched_skills)} of {len(all_target_skills)} core technical skills for {effective_role}" if all_target_skills else "General profile evaluation"
+        "detail": f"Matched {len(matched_skills)} of {len(all_target_skills)} core technical skills for {effective_role}"
     })
 
-    # 6. Formatting & Hygiene (Max 10)
-    hygiene_pts = 10
-    if len(raw_text.strip()) < 100:
-        hygiene_pts -= 5
+    hygiene_pts = 10 if len(raw_text.strip()) >= 100 else 5
     calculated_ats += hygiene_pts
     score_breakdown.append({
         "label": f"ATS Text Parseability ({hygiene_pts}/10)",
         "passed": hygiene_pts == 10,
-        "detail": "Clean textual layer with no parsing artifacts"
+        "detail": "Clean textual layer parsed."
     })
 
     final_ats_score = max(0, min(100, calculated_ats))
-
-    if not is_custom_role_provided and top_suggested_roles:
-        suggestions.append(f"Auto-Detected Best Role: '{effective_role}'. Top matching roles: {', '.join([r['role'] for r in top_suggested_roles[:3]])}.")
-
     if missing_skills:
         suggestions.append(f"Consider adding missing {effective_role} skills: {', '.join(missing_skills[:6])}.")
 
@@ -442,7 +420,6 @@ def analyze_resume_text(raw_text, job_title, job_desc):
         "match_score": match_score,
         "effective_role": effective_role,
         "is_custom_role": is_custom_role_provided,
-        "suggested_roles": top_suggested_roles,
         "ats": {
             "score": final_ats_score,
             "word_count": word_count,
@@ -463,16 +440,6 @@ def analyze_resume_text(raw_text, job_title, job_desc):
 def root():
     return jsonify({"status": "online", "service": "Resume Analyzer Engine"}), 200
 
-@app.route("/api/health", methods=["GET"])
-def health():
-    return jsonify({"status": "healthy"}), 200
-
-@app.route("/api/roles", methods=["GET"])
-def get_roles():
-    return jsonify({"roles": list(ROLE_SKILL_MATRIX.keys())}), 200
-
-# ----------------- AUTHENTICATION ROUTES -----------------
-
 @app.route("/api/signup", methods=["POST", "OPTIONS"])
 def signup():
     if request.method == "OPTIONS":
@@ -485,20 +452,31 @@ def signup():
 
     if not name or not email or not password:
         return jsonify({"error": "Name, email, and password are required."}), 400
+    if len(password) < 6:
+        return jsonify({"error": "Password must be at least 6 characters."}), 400
+
+    hashed_password = generate_password_hash(password)
 
     try:
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
         cursor.execute("SELECT id FROM users WHERE email = ?", (email,))
         if cursor.fetchone():
-            return jsonify({"error": "User with this email already exists."}), 409
+            return jsonify({"error": "A user with this email already exists."}), 409
 
         cursor.execute(
             "INSERT INTO users (name, email, password, created_at) VALUES (?, ?, ?, ?)",
-            (name, email, password, datetime.now().isoformat())
+            (name, email, hashed_password, datetime.now(timezone.utc).isoformat())
         )
+        user_id = cursor.lastrowid
         conn.commit()
-        return jsonify({"success": True, "name": name, "email": email}), 201
+
+        token = jwt.encode(
+            {"user_id": user_id, "email": email, "exp": datetime.now(timezone.utc) + timedelta(days=7)},
+            SECRET_KEY,
+            algorithm="HS256"
+        )
+        return jsonify({"success": True, "token": token, "name": name, "email": email}), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
@@ -520,25 +498,26 @@ def login():
         conn = sqlite3.connect(DB_FILE)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE email = ? AND password = ?", (email, password))
+        cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
         user = cursor.fetchone()
         
-        if not user:
+        if not user or not check_password_hash(user["password"], password):
             return jsonify({"error": "Invalid email or password."}), 401
 
-        return jsonify({"success": True, "name": user["name"], "email": user["email"]}), 200
+        token = jwt.encode(
+            {"user_id": user["id"], "email": user["email"], "exp": datetime.now(timezone.utc) + timedelta(days=7)},
+            SECRET_KEY,
+            algorithm="HS256"
+        )
+        return jsonify({"success": True, "token": token, "name": user["name"], "email": user["email"]}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
 
-# ----------------- SCAN & HISTORY ROUTES -----------------
-
 @app.route("/api/analyze", methods=["POST", "OPTIONS"])
-def analyze():
-    if request.method == "OPTIONS":
-        return jsonify({"status": "ok"}), 200
-
+@token_required
+def analyze(current_user_id):
     if "resume" not in request.files:
         return jsonify({"error": "No resume file provided."}), 400
     
@@ -563,7 +542,7 @@ def analyze():
         return jsonify({"error": "Unsupported file format. Please upload PDF, DOCX, or TXT."}), 400
 
     if not text.strip():
-        return jsonify({"error": "Could not parse readable text from document. Please ensure it is not password-protected or an image-only scan."}), 400
+        return jsonify({"error": "Could not parse readable text from document."}), 400
 
     analysis_data = analyze_resume_text(text, raw_job_title, job_description)
 
@@ -583,31 +562,36 @@ def analyze():
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO analyses (filename, job_title, match_score, ats_score, word_count, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO analyses (user_id, filename, job_title, match_score, ats_score, word_count, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (
+            current_user_id,
             file.filename,
             stored_history_title,
             analysis_data["match_score"],
             analysis_data["ats_score"],
             analysis_data["ats"]["word_count"],
-            datetime.now().isoformat()
+            datetime.now(timezone.utc).isoformat()
         ))
         conn.commit()
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Error logging analysis: {e}")
     finally:
         conn.close()
 
     return jsonify(analysis_data)
 
-@app.route("/api/history", methods=["GET"])
-def get_history():
+@app.route("/api/history", methods=["GET", "OPTIONS"])
+@token_required
+def get_history(current_user_id):
     try:
         conn = sqlite3.connect(DB_FILE)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM analyses ORDER BY created_at DESC")
+        cursor.execute(
+            "SELECT * FROM analyses WHERE user_id = ? ORDER BY created_at DESC", 
+            (current_user_id,)
+        )
         rows = cursor.fetchall()
         
         history = [{
@@ -626,15 +610,18 @@ def get_history():
         conn.close()
 
 @app.route("/api/analysis/<int:analysis_id>", methods=["DELETE", "OPTIONS"])
-def delete_analysis(analysis_id):
-    if request.method == "OPTIONS":
-        return jsonify({"status": "ok"}), 200
-
+@token_required
+def delete_analysis(current_user_id, analysis_id):
     try:
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM analyses WHERE id = ?", (analysis_id,))
+        cursor.execute(
+            "DELETE FROM analyses WHERE id = ? AND user_id = ?", 
+            (analysis_id, current_user_id)
+        )
         conn.commit()
+        if cursor.rowcount == 0:
+            return jsonify({"error": "Scan record not found or unauthorized."}), 404
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
