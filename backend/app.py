@@ -40,6 +40,10 @@ ROLE_SKILL_MATRIX = {
         "react", "nextjs", "node", "express", "python", "sql", "postgresql", "mongodb", 
         "docker", "microservices", "ci/cd", "aws", "typescript", "rest api", "graphql"
     ],
+    "web developer": [
+        "html", "css", "javascript", "react", "responsive design", "tailwind", 
+        "bootstrap", "rest api", "git", "seo", "web performance"
+    ],
     "python developer": [
         "python", "django", "flask", "fastapi", "sql", "postgresql", "pandas", 
         "numpy", "pytest", "asyncio", "celery", "redis", "docker"
@@ -71,6 +75,7 @@ ROLE_ALIASES = {
     "frontend developer": ["frontend", "front end", "front-end", "ui developer", "react developer"],
     "backend developer": ["backend", "back end", "back-end", "node developer", "api developer"],
     "full stack developer": ["full stack", "fullstack", "full-stack", "mern", "mean"],
+    "web developer": ["web developer", "web dev", "website developer"],
     "python developer": ["python developer", "python dev", "django developer"],
     "ai/ml engineer": ["ai", "ml", "ai/ml", "machine learning", "deep learning"],
     "data scientist": ["data science", "data scientist", "data analytics"],
@@ -294,7 +299,6 @@ def analyze_resume_text(raw_text, job_title, job_desc):
     suggestions = []
     calculated_ats = 0
 
-    # 1. Contact Completeness (Max 15)
     contact_pts = 0
     if contact_info["email"]: contact_pts += 5
     if contact_info["phone"]: contact_pts += 4
@@ -307,7 +311,6 @@ def analyze_resume_text(raw_text, job_title, job_desc):
         "detail": f"Email: {'✓' if contact_info['email'] else '✕'} | Phone: {'✓' if contact_info['phone'] else '✕'} | Profiles: {'✓' if contact_info['linkedin'] or contact_info['github'] else '✕'}"
     })
 
-    # 2. Section Hierarchy (Max 20)
     distinct_sections = len(set(sections_found))
     sec_pts = 20 if distinct_sections >= 4 else (14 if distinct_sections == 3 else (8 if distinct_sections == 2 else 4))
     calculated_ats += sec_pts
@@ -317,15 +320,7 @@ def analyze_resume_text(raw_text, job_title, job_desc):
         "detail": f"Detected {distinct_sections} key sections: {', '.join(set(sections_found)) if sections_found else 'None'}"
     })
 
-    # 3. Content Density & Length (Max 15)
-    if 350 <= word_count <= 850:
-        len_pts = 15
-    elif 220 <= word_count < 350:
-        len_pts = 10
-    elif word_count < 220:
-        len_pts = 5
-    else:
-        len_pts = 8
+    len_pts = 15 if 350 <= word_count <= 850 else (10 if 220 <= word_count < 350 else (5 if word_count < 220 else 8))
     calculated_ats += len_pts
     score_breakdown.append({
         "label": f"Content Density ({len_pts}/15)",
@@ -333,7 +328,6 @@ def analyze_resume_text(raw_text, job_title, job_desc):
         "detail": f"Resume contains {word_count} words."
     })
 
-    # 4. Action Verbs & Impact (Max 15)
     verbs_found = [v for v in ACTION_VERBS if re.search(r'\b' + re.escape(v) + r'\b', text_lower)]
     has_metrics = bool(re.search(r'\b\d+(?:%|\+|ms|k|x|\.\d+)\b', text_lower))
     impact_pts = min(10, len(verbs_found) * 2) + (5 if has_metrics else 0)
@@ -344,7 +338,6 @@ def analyze_resume_text(raw_text, job_title, job_desc):
         "detail": f"Action verbs: {len(verbs_found)} | Quantifiable metrics: {'Found' if has_metrics else 'Missing'}"
     })
 
-    # 5. Core Role Alignment (Max 25)
     skill_pts = int((match_score / 100) * 25) if all_target_skills else 15
     calculated_ats += skill_pts
     score_breakdown.append({
@@ -353,7 +346,6 @@ def analyze_resume_text(raw_text, job_title, job_desc):
         "detail": f"Matched {len(matched_skills)} of {len(all_target_skills)} core skills for {effective_role}"
     })
 
-    # 6. Formatting & Cleanliness (Max 10)
     hygiene_pts = 10 if len(raw_text.strip()) >= 100 else 5
     calculated_ats += hygiene_pts
     score_breakdown.append({
@@ -364,6 +356,15 @@ def analyze_resume_text(raw_text, job_title, job_desc):
 
     final_ats_score = max(0, min(100, calculated_ats))
     
+    top_suggested_roles = [
+        {"role": r["role"].title(), "match_percent": r["score"], "matched_skills_count": r["matched_count"]}
+        for r in detected_roles[:4]
+    ]
+
+    if not is_custom_role_provided and top_suggested_roles:
+        breakdown_text = " | ".join([f"{r['role']}: {r['match_percent']}% ({r['matched_skills_count']} skills)" for r in top_suggested_roles])
+        suggestions.append(f"🎯 Auto-Detected Primary Role: '{effective_role}'. Role Compatibility Breakdown ➔ {breakdown_text}")
+
     if contact_pts < 12:
         suggestions.append("Add missing contact credentials (Professional Email, Mobile Number, LinkedIn/GitHub).")
     if distinct_sections < 4:
@@ -376,6 +377,7 @@ def analyze_resume_text(raw_text, job_title, job_desc):
         "match_score": match_score,
         "effective_role": effective_role,
         "is_custom_role": is_custom_role_provided,
+        "suggested_roles": top_suggested_roles,
         "ats": {
             "score": final_ats_score,
             "word_count": word_count,
