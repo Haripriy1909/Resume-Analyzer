@@ -902,7 +902,6 @@ main {
   gap: 16px;
 }
 
-/* Invalid File Popup Modal */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -978,7 +977,6 @@ main {
   padding: 30px;
 }
 
-/* Mobile & Centered Responsive Hamburger Navigation */
 @media (max-width: 860px) {
   .hamburger-btn {
     display: flex;
