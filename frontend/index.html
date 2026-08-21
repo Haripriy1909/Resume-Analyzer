@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scanline — Smart Resume & ATS Analyzer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="grain"></div>
+
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand">
+          <span class="brand-mark">◎</span>
+          <span class="brand-name">Scanline</span>
+          <span class="brand-sub">/ ATS intelligence</span>
+        </div>
+
+        <button class="hamburger-btn" id="hamburgerBtn" aria-label="Toggle Navigation Menu">
+          <span class="hamburger-line"></span>
+          <span class="hamburger-line"></span>
+          <span class="hamburger-line"></span>
+        </button>
+
+        <nav class="topnav" id="topNav">
+          <button class="nav-btn is-active" data-view="scan">New Scan</button>
+          <button class="nav-btn" data-view="history">History</button>
+          <button class="nav-btn" data-view="about">About</button>
+          
+          <button class="theme-toggle-btn" id="themeToggleBtn" title="Toggle Theme">
+            <span class="theme-icon" id="themeIcon">🌙</span>
+          </button>
+
+          <span class="nav-divider">|</span>
+          
+          <div id="authNavContainer" class="auth-nav-container">
+            <button class="nav-btn" id="loginNavBtn" data-view="login">Log in</button>
+            <button class="nav-btn nav-btn-accent" id="signupNavBtn" data-view="signup">Sign up</button>
+            
+            <div id="userProfileBadge" class="user-badge" style="display: none;">
+              <span class="user-avatar">👤</span>
+              <span id="navUserName" class="user-name">User</span>
+            </div>
+            <button class="nav-btn logout-btn" id="logoutBtn" style="display: none;">Log out</button>
+          </div>
+
+          <span class="status-dot logged-out" id="authIndicator" title="Offline / Guest"></span>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <!-- View: Scanner -->
+      <section class="view" id="view-scan">
+        <div class="hero">
+          <p class="hero-eyebrow">CANDIDATE INTAKE // ATS SIMULATION</p>
+          <h1 class="hero-title">Put your resume<br />under the scanner.</h1>
+          <p class="hero-sub">
+            Precision scoring across structure, contact completeness, section integrity, and role benchmark alignment.
+          </p>
+        </div>
+
+        <form id="scanForm" class="scan-grid" autocomplete="off">
+          <div class="panel paper-panel" id="dropzone">
+            <div class="panel-label">01 / DOCUMENT</div>
+            <div class="paper-bed">
+              <div class="paper-sheet" id="paperSheet">
+                <div class="paper-empty" id="paperEmpty">
+                  <svg width="52" height="64" viewBox="0 0 46 58" fill="none">
+                    <path d="M4 2H30L42 14V54C42 55.65 40.65 57 39 57H4C2.35 57 1 55.65 1 54V5C1 3.35 2.35 2 4 2Z" stroke="currentColor" stroke-width="2"/>
+                    <path d="M30 2V14H42" stroke="currentColor" stroke-width="2"/>
+                    <line x1="9" y1="26" x2="34" y2="26" stroke="currentColor" stroke-width="2"/>
+                    <line x1="9" y1="34" x2="34" y2="34" stroke="currentColor" stroke-width="2"/>
+                    <line x1="9" y1="42" x2="24" y2="42" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                  <p class="paper-main-text"><strong>Drop resume here</strong><br />or click to browse</p>
+                  <p class="paper-hint">PDF · DOCX · TXT — max 8MB</p>
+                </div>
+                <div class="paper-filled" id="paperFilled" hidden>
+                  <svg width="36" height="46" viewBox="0 0 46 58" fill="none">
+                    <path d="M4 2H30L42 14V54C42 55.65 40.65 57 39 57H4C2.35 57 1 55.65 1 54V5C1 3.35 2.35 2 4 2Z" stroke="currentColor" stroke-width="2"/>
+                    <path d="M30 2V14H42" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                  <p class="filename" id="filenameText">resume.pdf</p>
+                  <button type="button" class="link-btn" id="clearFile">Remove File</button>
+                </div>
+                <div class="scan-sweep" id="scanSweep" hidden></div>
+              </div>
+              <input type="file" id="fileInput" accept=".pdf,.docx,.txt" hidden />
+            </div>
+          </div>
+
+          <div class="panel dark-panel">
+            <div class="panel-label">
+              02 / TARGET ROLE (OPTIONAL)
+              <span class="optional-tag">Auto-detects if left blank</span>
+            </div>
+            <input type="text" id="jobTitle" class="field-input" placeholder="e.g. Frontend Developer, Backend, AI/ML" />
+            <textarea id="jobDescription" class="field-textarea" placeholder="Paste the job description or specific required skills..."></textarea>
+            <div class="jd-meta"><span id="jdWordCount">0</span> words</div>
+          </div>
+
+          <button type="submit" class="run-btn" id="runBtn">
+            <span class="run-btn-label">Run Analysis</span>
+            <span class="run-btn-icon">→</span>
+          </button>
+          <p class="form-error" id="formError" hidden></p>
+        </form>
+
+        <section class="results" id="results" hidden>
+          <div class="results-header-actions">
+            <div>
+              <h2 class="results-title">Verified ATS Analysis Report</h2>
+              <p class="results-subtitle">Accurate heuristic breakdown, section scores, and optimization suggestions.</p>
+            </div>
+            <div class="report-btn-group">
+              <button type="button" class="run-btn report-btn json-btn" id="downloadJsonBtn">
+                { } Download JSON
+              </button>
+              <button type="button" class="run-btn report-btn" id="downloadReportBtn">
+                📄 Download PDF Report
+              </button>
+            </div>
+          </div>
+
+          <div class="results-grid" id="printableReport">
+            <div class="panel gauge-panel">
+              <div class="panel-label">ROLE SKILL MATCH</div>
+              <div class="gauge-wrap">
+                <svg viewBox="0 0 200 120" class="gauge-svg">
+                  <path d="M 20 110 A 90 90 0 0 1 180 110" class="gauge-track" />
+                  <path d="M 20 110 A 90 90 0 0 1 180 110" class="gauge-fill" id="gaugeFill" />
+                </svg>
+                <div class="gauge-readout">
+                  <span class="gauge-number" id="gaugeNumber">0</span>
+                  <span class="gauge-percent">%</span>
+                </div>
+              </div>
+              <p class="gauge-caption" id="gaugeCaption">Match based on Job Description & Target Role.</p>
+            </div>
+
+            <div class="panel ats-panel">
+              <div class="panel-label">ATS READABILITY & STRUCTURE SCORE</div>
+              <div class="ats-score-row">
+                <span class="ats-score" id="atsScore">0</span>
+                <span class="ats-score-label">/ 100</span>
+              </div>
+              <ul class="check-list" id="checkList"></ul>
+            </div>
+
+            <div class="panel stats-panel">
+              <div class="panel-label">EXTRACTED METRICS</div>
+              <dl class="stat-list" id="statList"></dl>
+            </div>
+          </div>
+
+          <div class="panel suggestions-panel" id="suggestionsPanel">
+            <div class="panel-label" style="color: var(--amber);">⚡ ACTIONABLE ATS IMPROVEMENT SUGGESTIONS</div>
+            <ul class="suggestions-list" id="suggestionsList"></ul>
+          </div>
+
+          <div class="results-grid results-grid-skills">
+            <div class="panel skills-panel">
+              <div class="panel-label">
+                MATCHED SKILLS
+                <span class="chip-count" id="matchedCount">0</span>
+              </div>
+              <div class="chip-row" id="matchedSkills">
+                <p class="empty-note">No overlap detected.</p>
+              </div>
+            </div>
+            <div class="panel skills-panel">
+              <div class="panel-label">
+                MISSING / RECOMMENDED SKILLS
+                <span class="chip-count chip-count-warn" id="missingCount">0</span>
+              </div>
+              <div class="chip-row" id="missingSkills">
+                <p class="empty-note">None missing.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <!-- View: History -->
+      <section class="view" id="view-history" hidden>
+        <div class="hero hero-compact">
+          <p class="hero-eyebrow">SCAN LOG</p>
+          <h1 class="hero-title-sm">Past Analyses</h1>
+        </div>
+        <div class="panel history-panel">
+          <div class="table-responsive">
+            <table class="history-table">
+              <thead>
+                <tr>
+                  <th>File</th>
+                  <th>Role</th>
+                  <th>Match</th>
+                  <th>ATS Score</th>
+                  <th>Words</th>
+                  <th>When</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="historyBody">
+                <tr>
+                  <td colspan="7" class="empty-note">No scans yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- View: About -->
+      <section class="view" id="view-about" hidden>
+        <div class="hero hero-compact">
+          <p class="hero-eyebrow">SYSTEM ARCHITECTURE // ABOUT SCANLINE</p>
+          <h1 class="hero-title-sm">Next-Gen Resume & ATS Intelligence</h1>
+          <p class="hero-sub">
+            Bridging candidate profiles with Applicant Tracking Systems via deep heuristic parsing and semantic role matching.
+          </p>
+        </div>
+
+        <div class="about-container">
+          <div class="panel about-card intro-card">
+            <h2 class="about-heading">What is Scanline?</h2>
+            <p class="about-text">
+              <strong>Scanline</strong> is an automated ATS simulation platform designed to audit resumes against enterprise recruitment algorithms. By parsing document metadata, section hierarchies, contact nodes, and JD-matching vectors, Scanline highlights exactly what passes automated filters and what gets flagged.
+            </p>
+          </div>
+
+          <div class="about-grid">
+            <div class="panel about-card">
+              <div class="about-icon">⚡</div>
+              <h3 class="about-feature-title">Role-Aware Engine</h3>
+              <p class="about-text">
+                Benchmarks resumes against modern profiles (Frontend, Backend, AI/ML, DevOps) to surface missing high-impact competencies.
+              </p>
+            </div>
+
+            <div class="panel about-card">
+              <div class="about-icon">🛡️</div>
+              <h3 class="about-feature-title">Strict ATS Validation</h3>
+              <p class="about-text">
+                Validates critical Experience and Education sections, portfolio endpoints, and flags low content density.
+              </p>
+            </div>
+
+            <div class="panel about-card">
+              <div class="about-icon">📊</div>
+              <h3 class="about-feature-title">Comprehensive Reports</h3>
+              <p class="about-text">
+                Provides actionable step-by-step suggestions, JSON export, and printable A4 PDF summaries.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- View: Login -->
+      <section class="view" id="view-login" hidden>
+        <div class="hero hero-compact">
+          <p class="hero-eyebrow">AUTHENTICATION</p>
+          <h1 class="hero-title-sm">Log in to Console</h1>
+        </div>
+        <div class="panel auth-panel">
+          <form class="auth-form" id="loginForm" autocomplete="off">
+            <input type="email" id="loginEmail" class="field-input" placeholder="Console email" required />
+            <input type="password" id="loginPassword" class="field-input" placeholder="Access key / password" required />
+            <button type="submit" class="run-btn" id="loginSubmitBtn">
+              <span class="run-btn-label">Connect</span>
+              <span class="run-btn-icon">→</span>
+            </button>
+            <p class="form-error" id="loginError" hidden></p>
+          </form>
+        </div>
+      </section>
+
+      <!-- View: Sign Up -->
+      <section class="view" id="view-signup" hidden>
+        <div class="hero hero-compact">
+          <p class="hero-eyebrow">REGISTRATION</p>
+          <h1 class="hero-title-sm">Create Credentials</h1>
+        </div>
+        <div class="panel auth-panel">
+          <form class="auth-form" id="signupForm" autocomplete="off">
+            <input type="text" id="signupName" class="field-input" placeholder="Operator name / Full name" required />
+            <input type="email" id="signupEmail" class="field-input" placeholder="Console email" required />
+            <input type="password" id="signupPassword" class="field-input" placeholder="Create password (min 6 characters)" minlength="6" required />
+            <button type="submit" class="run-btn" id="signupSubmitBtn">
+              <span class="run-btn-label">Initialize Profile</span>
+              <span class="run-btn-icon">→</span>
+            </button>
+            <p class="form-error" id="signupError" hidden></p>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <!-- Invalid Resume Popup Modal -->
+    <div id="invalidResumeModal" class="modal-backdrop" hidden>
+      <div class="modal-card">
+        <div class="modal-icon">⚠️</div>
+        <h3 class="modal-title">Invalid Document Detected</h3>
+        <p class="modal-desc" id="invalidModalDesc">
+          The uploaded file does not contain typical resume sections or credentials. Please upload a valid resume (PDF, DOCX, or TXT).
+        </p>
+        <button type="button" class="run-btn modal-btn" id="closeModalBtn">
+          <span>Upload Valid Resume</span>
+        </button>
+      </div>
+    </div>
+
+    <footer class="foot">
+      <span>Scanline — Advanced Resume & ATS Intelligence Suite.</span>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
